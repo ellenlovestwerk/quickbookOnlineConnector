@@ -1,8 +1,10 @@
 package com.helphalf.quickbook.helper;
 
+import com.alibaba.fastjson.JSON;
 import com.intuit.ipp.data.*;
 import com.intuit.ipp.exception.FMSException;
 import com.intuit.ipp.services.DataService;
+import com.intuit.ipp.services.QueryResult;
 import org.apache.commons.lang.RandomStringUtils;
 
 import java.math.BigDecimal;
@@ -39,13 +41,42 @@ public final class AccountHelper {
 
 		return account;
 	}
+
+	public static Account getAccountWithName(DataService service, String name) throws FMSException, ParseException {
+		QueryResult queryResult = service.executeQuery("select * from account Where name = '"+name+"'");
+		if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
+			Account account =(Account) queryResult.getEntities().get(0);
+			return account;
+		}
+		return null;
+	}
+
+	public static ReferenceType getAccountRef(Account account) {
+		ReferenceType accountRef = new ReferenceType();
+		accountRef.setName(account.getName());
+		accountRef.setValue(account.getId());
+		return accountRef;
+	}
 	
-	  public static ReferenceType getAccountRef(Account account) {
+	  public static ReferenceType getExpenseAccountRef(Account account) {
+
 			ReferenceType accountRef = new ReferenceType();
 			accountRef.setName(account.getName());
 			accountRef.setValue(account.getId());
 			return accountRef;
 	  }
+	public static ReferenceType getIncomeAccountRef(Account account) {
+		ReferenceType accountRef = new ReferenceType();
+		accountRef.setName(account.getName());
+		accountRef.setValue(account.getId());
+		return accountRef;
+	}
+	public static ReferenceType getAssetAccountRef(Account account) {
+		ReferenceType accountRef = new ReferenceType();
+		accountRef.setName(account.getName());
+		accountRef.setValue(account.getId());
+		return accountRef;
+	}
 	  
 	  public static Account getAssetAccount(DataService service)  throws FMSException {
 			List<Account> accounts = (List<Account>) service.findAll(new Account());
@@ -67,7 +98,7 @@ public final class AccountHelper {
 	
 	public static Account getOtherCurrentAssetAccountFields() throws FMSException {
 		Account account = new Account();
-		account.setName("Other CurrentAsse" + RandomStringUtils.randomAlphanumeric(5));
+		account.setName("Other CurrentAsset" + RandomStringUtils.randomAlphanumeric(5));
 		account.setSubAccount(false);
 		account.setFullyQualifiedName(account.getName());
 		account.setActive(true);

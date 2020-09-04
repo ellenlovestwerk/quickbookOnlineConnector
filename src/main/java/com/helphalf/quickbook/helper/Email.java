@@ -12,9 +12,14 @@ public final class Email {
 		
 	}
 
+	public static EmailAddress getEmailAddressWithAddr(String email) {
+		EmailAddress emailAddr = new EmailAddress();
+		emailAddr.setAddress(email);
+		return emailAddr;
+	}
 	public static EmailAddress getEmailAddress() {
 		EmailAddress emailAddr = new EmailAddress();
-		emailAddr.setAddress("test@abc.com");
+		emailAddr.setAddress("test@gmail.com");
 		return emailAddr;
 	}
 

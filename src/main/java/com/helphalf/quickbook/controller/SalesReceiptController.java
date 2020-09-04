@@ -8,7 +8,7 @@ import com.helphalf.quickbook.qbo.ContextFactory;
 import com.helphalf.quickbook.qbo.DataServiceFactory;
 import com.intuit.ipp.data.Account;
 import com.intuit.ipp.data.Error;
-import com.intuit.ipp.data.Invoice;
+import com.intuit.ipp.data.SalesReceipt;
 import com.intuit.ipp.exception.FMSException;
 import com.intuit.ipp.exception.InvalidTokenException;
 import com.intuit.ipp.services.DataService;
@@ -23,15 +23,14 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import com.helphalf.quickbook.helper.InvoiceHelper;
-import org.springframework.http.ResponseEntity;
+import com.helphalf.quickbook.helper.SalesReceiptHelper;
+
 import java.text.ParseException;
 import java.util.List;
 import java.util.Map;
 
-
 @RestController
-public class InvoiceController {
+public class SalesReceiptController {
 
     @Autowired
     OAuth2PlatformClientFactory factory;
@@ -41,12 +40,12 @@ public class InvoiceController {
 
 
     @ResponseBody
-    @PostMapping("/invoice/create")
-    public String createInvoice(@RequestBody String newInvoice) {
+    @PostMapping("/salesReceipt/create")
+    public String createSalesReceipt(@RequestBody String newSalesReceipt) {
 
         String realmId = ContextFactory.companyID;
 
-        Map<String, Object> newInvoiceMap = JSON.parseObject(newInvoice, Map.class);
+        Map<String, Object> newSalesReceiptMap = JSON.parseObject(newSalesReceipt, Map.class);
 
         if (StringUtils.isEmpty(realmId)) {
             return new JSONObject().put("response", "No realm ID.  QBO calls only work if the accounting scope was passed!").toString();
@@ -68,28 +67,10 @@ public class InvoiceController {
             //get DataService
             DataService service = serviceClient.getDataService(realmId, accessToken);
 
-            Invoice invoice = InvoiceHelper.getInvoiceFields(service,newInvoiceMap);
-//            System.out.println("saveInvoice-----"+JSON.toJSONString(invoice));
-//            Invoice savedInvoice = service.add(invoice);
-//            System.out.println("saveInvoice2-----"+JSON.toJSONString(savedInvoice));
-//            LOG.info("Invoice created: " + savedInvoice.getId() + " ::invoice doc num: " + savedInvoice.getDocNumber());
+            SalesReceipt salesReceipt = SalesReceiptHelper.getSalesReceiptFields(service,newSalesReceiptMap);
+//
 
-//            return JSON.toJSONString(invoice);
-
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                String jsonInString = mapper.writeValueAsString(invoice);
-
-                return jsonInString;
-
-            } catch (JsonProcessingException e) {
-                LOG.error("Exception while getting account info ", e);
-                return new JSONObject().put("response",failureMsg).toString();
-            }
-
-
-
-//            return new JSONObject().put("response status 200: ",JSON.toJSONString(invoice));
+            return JSON.toJSONString(salesReceipt);
         }
         catch (InvalidTokenException e) {
             LOG.error("Error while calling executeQuery :: " + e.getMessage());
@@ -109,7 +90,7 @@ public class InvoiceController {
                 DataService service = serviceClient.getDataService(realmId, accessToken);
 
                 // get all companyinfo
-                String sql = "select * from invoice";
+                String sql = "select * from SalesReceipt";
                 QueryResult queryResult = service.executeQuery(sql);
                 return processResponse(failureMsg, queryResult);
 
@@ -133,12 +114,12 @@ public class InvoiceController {
 
     private String processResponse(String failureMsg, QueryResult queryResult) {
         if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
-            Invoice invoice =(Invoice) queryResult.getEntities().get(0);
+            SalesReceipt salesReceipt =(SalesReceipt) queryResult.getEntities().get(0);
 
-            LOG.info("invoice -> invoice: " + invoice.getDocNumber());
+            LOG.info("SalesReceipt -> SalesReceipt: " + salesReceipt.getDocNumber());
             ObjectMapper mapper = new ObjectMapper();
             try {
-                String jsonInString = mapper.writeValueAsString(invoice);
+                String jsonInString = mapper.writeValueAsString(salesReceipt);
                 return jsonInString;
             } catch (JsonProcessingException e) {
                 LOG.error("Exception while getting account info ", e);
@@ -148,16 +129,5 @@ public class InvoiceController {
         }
         return failureMsg;
     }
-
-//    private DataService getDataService(String realmId, String accessToken) throws FMSException {
-//
-//        //create oauth object
-//        OAuth2Authorizer oauth = new OAuth2Authorizer(accessToken);
-//        //create context
-//        Context context = new Context(oauth, ServiceType.QBO, realmId);
-//
-//        // create dataservice
-//        return new DataService(context);
-//    }
 
 }

@@ -25,40 +25,26 @@ import org.graalvm.compiler.core.common.type.ArithmeticOpTable;
  * @author dderose
  *
  */
-public final class InvoiceHelper {
-	
-	private InvoiceHelper() {
-		
+public final class SalesReceiptHelper {
+
+	private SalesReceiptHelper() {
+
 	}
 
-	public static Invoice getInvoiceFields(DataService service, Map<String,Object> map) throws FMSException, ParseException {
+	public static SalesReceipt getSalesReceiptFields(DataService service, Map<String,Object> map) throws FMSException, ParseException {
 
 
-		Invoice invoice = new Invoice();
-		
-		// Mandatory
-		//设置invoice num,默认+1
-		//need to find duplicate
-//		String sql = "select * from Invoice order by TxnDate DESC";
-//		QueryResult queryResult = service.executeQuery(sql);
-//		String invoiceLists = JSON.toJSONString(queryResult);
-//		Map<String, Object> invoiceMap = JSON.parseObject(invoiceLists, Map.class);
-//		List<Map<String, Object>> invoiceList = (List) invoiceMap.get("entities");
-//		System.out.println("invoiceList---"+JSON.toJSONString(invoiceList));
+		SalesReceipt salesReceipt = new SalesReceipt();
 
-//		String docNumber = (String) invoiceList.get(0).get("docNumber");
-//		String newDocNumber = addOne(docNumber);
-//		System.out.println("type of newDocNumber:"+newDocNumber.getClass());
-//		invoice.setDocNumber(newDocNumber);
 
 		//先判断是否给了docNumber-----------------
 		String docNumber = (String) map.get("doc_number");
 		if (docNumber != null) {
-			invoice.setDocNumber(docNumber);
+			salesReceipt.setDocNumber(docNumber);
 		}
 
 		try {
-			invoice.setTxnDate(DateUtils.getCurrentDateTime());
+			salesReceipt.setTxnDate(DateUtils.getCurrentDateTime());
 		} catch (ParseException e) {
 			throw new FMSException("ParseException while getting current date.");
 		}
@@ -91,18 +77,18 @@ public final class InvoiceHelper {
 		}
 		;
 		System.out.println("new customer-------"+JSON.toJSONString(customer));
-		invoice.setCustomerRef(CustomerHelper.getCustomerRef(customer));
+		salesReceipt.setCustomerRef(CustomerHelper.getCustomerRef(customer));
 
 
 		//set shipping from address
 		Map<String, Object> customerAddressMap = (Map<String, Object>) map.get("customer");
-		invoice.setShipAddr(Address.getPhysicalAddress(customerAddressMap));
-		invoice.setBillAddr(Address.getPhysicalAddress(customerAddressMap));
+		salesReceipt.setShipAddr(Address.getPhysicalAddress(customerAddressMap));
+		salesReceipt.setBillAddr(Address.getPhysicalAddress(customerAddressMap));
 		Map<String, Object> shipFromAddr = (Map<String, Object>) map.get("location");
-		invoice.setShipFromAddr(Address.getPhysicalAddress(shipFromAddr));
+		salesReceipt.setShipFromAddr(Address.getPhysicalAddress(shipFromAddr));
 
 		//get line content
-		//添加invoice内line的内容
+		//添加SalesReceipt内line的内容
 		List<Line> invLine = new ArrayList<Line>();
 //		Line line = new Line();
 
@@ -158,7 +144,7 @@ public final class InvoiceHelper {
 
 				line.setAmount(amount);
 				invLine.add(line);
-				invoice.setLine(invLine);
+				salesReceipt.setLine(invLine);
 			}else if (item != null){
 				SalesItemLineDetail silDetails = new SalesItemLineDetail();
 
@@ -181,106 +167,32 @@ public final class InvoiceHelper {
 //			BigDecimal amount = (BigDecimal) lineMap.get("amount");
 				line.setAmount(amount);
 				invLine.add(line);
-				invoice.setLine(invLine);
+				salesReceipt.setLine(invLine);
 			}
 
 		}
 
 
-		invoice.setPrintStatus(PrintStatusEnum.NEED_TO_PRINT);
-//		invoice.setTotalAmt(new BigDecimal("10"));
-		invoice.setFinanceCharge(false);
+		salesReceipt.setPrintStatus(PrintStatusEnum.NEED_TO_PRINT);
+		salesReceipt.setFinanceCharge(false);
 
-		Invoice savedInvoice = service.add(invoice);
+		SalesReceipt savedSalesReceipt = service.add(salesReceipt);
 
 		//send email
 //		System.out.println("email------"+customer.getPrimaryEmailAddr().getAddress()); //can get the email address
 		System.out.println("send email---"+ sendEmail);
 
 		if (sendEmail) {
-//			service.sendEmail(invoice, customerEmail);
 			System.out.println(sendEmail);
-			service.sendEmail(savedInvoice, customer.getPrimaryEmailAddr().getAddress());
+			service.sendEmail(savedSalesReceipt, customer.getPrimaryEmailAddr().getAddress());
 
 		}
 
-		return savedInvoice;
+		return savedSalesReceipt;
 	}
-	
-	public static Invoice getASTInvoiceFields(DataService service) throws FMSException, ParseException {
-		Invoice invoice = new Invoice();
-		
-		//add customer
-		Customer customer = CustomerHelper.getCustomer(service);
-		invoice.setCustomerRef(CustomerHelper.getCustomerRef(customer));
-
-		// add line
-		List<Line> invLine = new ArrayList<Line>();
-		Line line = new Line();
-		line.setAmount(new BigDecimal("100"));
-		line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
-			
-		SalesItemLineDetail silDetails = new SalesItemLineDetail();
-		
-		Item item = ItemHelper.getItem(service);
-		silDetails.setItemRef(ItemHelper.getItemRef(item));
-		
-		//set line item as taxable
-		silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
-
-		line.setSalesItemLineDetail(silDetails);
-		invLine.add(line);
-		invoice.setLine(invLine);
-		
-		TxnTaxDetail txnTaxDetail = new TxnTaxDetail();
 
 
-		//pass dummy tax code
-		TaxCode taxcode = TaxCodeInfo.getTaxCode(service);
-		txnTaxDetail.setTxnTaxCodeRef(TaxCodeInfo.getTaxCodeRef(taxcode));
-		invoice.setTxnTaxDetail(txnTaxDetail);
-		
-		//set shipping address
-		invoice.setShipAddr(Address.getAddressForAST());
 
-		return invoice;
-	}
-	
-	public static Invoice getASTOverrideFields(DataService service) throws FMSException, ParseException {
-		Invoice invoice = new Invoice();
-		
-		//add customer
-		Customer customer = CustomerHelper.getCustomer(service);
-		invoice.setCustomerRef(CustomerHelper.getCustomerRef(customer));
-
-		// add line
-		List<Line> invLine = new ArrayList<Line>();
-		Line line = new Line();
-		line.setAmount(new BigDecimal("100"));
-		line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
-			
-		SalesItemLineDetail silDetails = new SalesItemLineDetail();
-		
-		Item item = ItemHelper.getItem(service);
-		silDetails.setItemRef(ItemHelper.getItemRef(item));
-		
-		//set line item as taxable
-		silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
-
-		line.setSalesItemLineDetail(silDetails);
-		invLine.add(line);
-		invoice.setLine(invLine);
-		
-		TxnTaxDetail txnTaxDetail = new TxnTaxDetail();
-		//override tax value
-		txnTaxDetail.setTotalTax(new BigDecimal("12"));
-		invoice.setTxnTaxDetail(txnTaxDetail);
-		
-		//set shipping address
-		invoice.setShipAddr(Address.getAddressForAST());
-
-		return invoice;
-	}
 
 	public static String addOne(String Str) {
 		String[] strs = Str.split("[^0-9]");//根据不是数字的字符拆分字符串
@@ -379,41 +291,12 @@ for service
 		Account incomeAccount = AccountHelper.getAccountWithName(service,"Sales of Product Income");
 		item.setIncomeAccountRef(AccountHelper.getIncomeAccountRef(incomeAccount));
 
-//
-//		Account expenseAccount = AccountHelper.getExpenseBankAccount(service);
-//		item.setExpenseAccountRef(AccountHelper.getAccountRef(expenseAccount));
-//
-//		Account assetAccount = AccountHelper.getAssetAccount(service);
-//		item.setAssetAccountRef(AccountHelper.getAccountRef(assetAccount));
 
-
-
-//		System.out.println("saved item---"+JSON.toJSONString(item));
 		service.add(item);
-//		return savedItem;
 		return item;
 	}
 
-//	  public static Invoice getInvoice(DataService service) throws FMSException, ParseException {
-//			List<Invoice> invoices = (List<Invoice>) service.findAll(new Invoice());
-//			if (!invoices.isEmpty()) {
-//				return invoices.get(0);
-//			}
-//			return createItem(service);
-//	  }
-//
-//
-//	private static Invoice createItem(DataService service) throws FMSException, ParseException {
-//		return service.add(getInvoiceFields(service));
-//
-//	}
-//
-//	public static ReferenceType getInvoiceRef(Invoice invoice) {
-//			ReferenceType invoiceRef = new ReferenceType();
-//			invoiceRef.setValue(invoice.getId());
-//			return invoiceRef;
-//	}
-	
-	
-	  
+
+
+
 }

@@ -30,12 +30,21 @@ public final class ItemHelper {
 		item.setUnitPrice(new BigDecimal("200"));
 		item.setType(ItemTypeEnum.SERVICE);
 
-		Account incomeAccount = AccountHelper.getIncomeBankAccount(service);
-		item.setIncomeAccountRef(AccountHelper.getAccountRef(incomeAccount));
-		item.setPurchaseCost(new BigDecimal("300"));
+//		Account incomeAccount = AccountHelper.getAccount(service);
+//		item.setIncomeAccountRef(AccountHelper.getIncomeBankAccount(incomeAccount));
 
+
+//		Account expenseAccount = AccountHelper.getExpenseBankAccount(service);
+//		item.setExpenseAccountRef(AccountHelper.getAccountRef(expenseAccount));
+		Account incomeAccount = AccountHelper.getIncomeBankAccount(service);
+		item.setIncomeAccountRef(AccountHelper.getIncomeAccountRef(incomeAccount));
+//		item.setPurchaseCost((BigDecimal) itemObj.get("purchase_price"));
+		item.setPurchaseCost(new BigDecimal("300"));
 		Account expenseAccount = AccountHelper.getExpenseBankAccount(service);
-		item.setExpenseAccountRef(AccountHelper.getAccountRef(expenseAccount));
+		item.setExpenseAccountRef(AccountHelper.getExpenseAccountRef(incomeAccount));
+
+		Account assetAccount = AccountHelper.getAssetAccount(service);
+		item.setAssetAccountRef(AccountHelper.getAssetAccountRef(assetAccount));
 
 		item.setTrackQtyOnHand(false);
 
@@ -64,6 +73,7 @@ public final class ItemHelper {
 
 		if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
 			Item item = (Item) queryResult.getEntities().get(0);
+			System.out.println("item------"+item);
 			return item;
 		}
 		return null;

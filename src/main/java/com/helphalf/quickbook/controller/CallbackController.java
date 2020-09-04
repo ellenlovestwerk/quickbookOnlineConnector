@@ -1,5 +1,6 @@
 package com.helphalf.quickbook.controller;
 
+import com.alibaba.fastjson.JSON;
 import com.helphalf.quickbook.client.OAuth2PlatformClientFactory;
 import com.helphalf.quickbook.qbo.ContextFactory;
 import com.helphalf.quickbook.qbo.DataServiceFactory;
@@ -10,12 +11,16 @@ import com.intuit.oauth2.exception.OAuthException;
 import com.intuit.oauth2.exception.OpenIdException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
 
 @Controller
@@ -31,14 +36,15 @@ public class CallbackController {
      *  The Authorization code has a short lifetime.
      *  Hence Unless a user action is quick and mandatory, proceed to exchange the Authorization Code for
      *  BearerToken
-     *      
-     * @param auth_code
+	 *
+     * @param authCode
      * @param state
      * @param realmId
-     * @param session
+
      * @return
      */
     @RequestMapping("/oauth2redirect")
+	@ResponseBody
     public String callBackFromOAuth(@RequestParam("code") String authCode, @RequestParam("state") String state, @RequestParam(value = "realmId", required = false) String realmId, HttpSession session) {
         logger.info("inside oauth2redirect of sample"  );
 
@@ -56,11 +62,28 @@ public class CallbackController {
 //	            session.setAttribute("access_token", bearerTokenResponse.getAccessToken());
 //	            session.setAttribute("refresh_token", bearerTokenResponse.getRefreshToken());
 
-//	            accessToken = bearerTokenResponse.getAccessToken();
-//				System.out.println("access_token--------!!!"+bearerTokenResponse.getAccessToken());
+//
 				ContextFactory.bearerToken = bearerTokenResponse.getAccessToken();
 				ContextFactory.refreshToken = bearerTokenResponse.getRefreshToken();
 				ContextFactory.companyID = realmId;
+
+
+//
+//				String bearerToken = bearerTokenResponse.getAccessToken();
+//				String refreshToken = bearerTokenResponse.getRefreshToken();
+//				Map<String, Object> auth = new HashMap<String, Object>();
+//				auth.put("access_token", bearerToken);
+//				auth.put("refresh_token", refreshToken);
+//				auth.put("realm_id", realmId);
+
+
+
+//				String jsonString = new JSONObject()
+//						.put("realm_id",realmId)
+//						.put("access_token", bearerTokenResponse.getAccessToken())
+//						.put("refresh_token", bearerTokenResponse.getRefreshToken()).toString();
+
+
 
 	            /*
 	                Update your Data store here with user's AccessToken and RefreshToken along with the realmId
@@ -85,7 +108,14 @@ public class CallbackController {
 	            }
 	            
 	            return "connected";
-	        }
+
+//				System.out.println("auth type"+ auth.getClass());
+
+//				return JSON.toJSONString(auth);
+
+
+
+			}
 	        logger.info("csrf token mismatch " );
         } catch (OAuthException e) {
         	logger.error("Exception in callback handler ", e);
