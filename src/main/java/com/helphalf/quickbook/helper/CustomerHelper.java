@@ -25,7 +25,7 @@ public final class CustomerHelper {
 	}
 
 	public static Customer getCustomer(DataService service) throws FMSException, ParseException {
-		List<Customer> customers = (List<Customer>) service.findAll(new Customer());
+		List<Customer> customers = service.findAll(new Customer());
 //		System.out.println("customers"+customers);
 		if (!customers.isEmpty()) {
 			return customers.get(0);

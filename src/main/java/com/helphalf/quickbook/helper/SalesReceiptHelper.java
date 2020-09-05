@@ -11,6 +11,7 @@ import java.util.Map;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.helphalf.quickbook.controller.QBOController;
 import com.intuit.ipp.data.*;
 import com.intuit.ipp.serialization.custom.OperationEnumJsonSerializer;
 import com.intuit.ipp.services.QueryResult;
@@ -19,6 +20,7 @@ import org.apache.commons.lang.RandomStringUtils;
 import com.intuit.ipp.exception.FMSException;
 import com.intuit.ipp.services.DataService;
 import com.intuit.ipp.util.DateUtils;
+import org.apache.log4j.Logger;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable;
 
 /**
@@ -30,6 +32,7 @@ public final class SalesReceiptHelper {
 	private SalesReceiptHelper() {
 
 	}
+	private static final Logger LOG = Logger.getLogger(QBOController.class);
 
 	public static SalesReceipt getSalesReceiptFields(DataService service, Map<String,Object> map) throws FMSException, ParseException {
 
@@ -75,7 +78,6 @@ public final class SalesReceiptHelper {
 				customer.setPrimaryEmailAddr(email);
 			}
 		}
-		;
 		System.out.println("new customer-------"+JSON.toJSONString(customer));
 		salesReceipt.setCustomerRef(CustomerHelper.getCustomerRef(customer));
 
@@ -122,10 +124,10 @@ public final class SalesReceiptHelper {
 //				Item savedItem = service.add(newItem);
 //				savedItem = ItemHelper.getItemWithName(service,itemName);
 //				item.setId(savedItem.getId());
-				System.out.println("saved item---------------"+JSON.toJSONString(savedItem));
+//				System.out.println("saved item---------------"+JSON.toJSONString(savedItem));
 //				System.out.println("item name---"+savedItem.getName());
 //				item = ItemHelper.getItemWithName(service,savedItem.getName());
-				System.out.println("item detail---"+savedItem);
+//				System.out.println("item detail---"+savedItem);
 //				savedItem.setId(savedItem.getId());
 				BigDecimal qty = new BigDecimal(lineMap.get("quantity").toString());
 				silDetails.setQty(qty);
@@ -140,7 +142,7 @@ public final class SalesReceiptHelper {
 
 				BigDecimal amount = tax.add(unitPrice.multiply(qty));
 
-				System.out.println("inside amount---"+amount+"------"+tax);
+//				System.out.println("inside amount---"+amount+"------"+tax);
 
 				line.setAmount(amount);
 				invLine.add(line);
@@ -148,7 +150,7 @@ public final class SalesReceiptHelper {
 			}else if (item != null){
 				SalesItemLineDetail silDetails = new SalesItemLineDetail();
 
-				System.out.println("item id----"+item.getId());
+//				System.out.println("item id----"+item.getId());
 //				item.setId(item.getId());
 				silDetails.setItemRef(ItemHelper.getItemRef(item));
 				//			String qty = lineMap.get("quantity").toString();
@@ -191,6 +193,178 @@ public final class SalesReceiptHelper {
 		return savedSalesReceipt;
 	}
 
+	public static SalesReceipt updateSalesReceipt(DataService service, Map<String,Object> map) throws FMSException, ParseException {
+
+//			DataService service = DataServiceFactory.getDataService();
+
+		//get SalesReceipt
+		String id = (String) map.get("id");
+		SalesReceipt addSalesReceipt= getSalesReceiptWithId(service,id);
+		System.out.println("invoice-----"+JSON.toJSONString(addSalesReceipt));
+		// sparse update SalesReceipt
+		addSalesReceipt.setSparse(true);
+		List<Line> invLine = new ArrayList<Line>();
+		JSONArray lineArray = (JSONArray)map.get("items");
+		System.out.println("lineArray----"+lineArray);
+		Map<String, Object> settingObj = (Map<String, Object>) map.get("settings");
+
+		for(int i = 0; i < lineArray.size(); i++) {
+			Line line = new Line();
+			String lineDetail = JSON.toJSONString(lineArray.get(i));
+			Map<String, Object> lineMap = JSON.parseObject(lineDetail, Map.class);
+			String itemName = (String) lineMap.get("name");
+			Item item = ItemHelper.getItemWithName(service,itemName);
+			String description = (String) lineMap.get("description");
+			line.setId(Integer.toString(i+1));
+
+			if(description == null) {
+				line.setDescription("");
+			}else{
+				line.setDescription(description);
+			}
+
+			if (item == null ) {
+				SalesItemLineDetail silDetails = new SalesItemLineDetail();
+				//if it is for shipping
+				if (itemName == "shipping") {
+					Item savedItem = getItemWithNonInventoryFields(service,lineMap,settingObj);
+					silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+					line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+					line.setSalesItemLineDetail(silDetails);
+					BigDecimal amount = new BigDecimal(lineMap.get("amount").toString());
+					line.setAmount(amount);
+					invLine.add(line);
+					addSalesReceipt.setLine(invLine);
+				}
+				if(itemName == "tax") {
+					Item savedItem = getItemWithNonInventoryFields(service,lineMap,settingObj);
+					silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+					line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+					line.setSalesItemLineDetail(silDetails);
+					BigDecimal amount = new BigDecimal(lineMap.get("amount").toString());
+
+					line.setAmount(amount);
+					invLine.add(line);
+					addSalesReceipt.setLine(invLine);
+				}
+
+				Item savedItem = getItemWithInventoryFields(service,lineMap,settingObj);
+				silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+				BigDecimal qty = new BigDecimal(lineMap.get("quantity").toString());
+				silDetails.setQty(qty);
+				BigDecimal unitPrice = new BigDecimal(lineMap.get("unit_price").toString());
+				silDetails.setUnitPrice(unitPrice);
+				BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
+				silDetails.setTaxInclusiveAmt(tax);
+				silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
+
+				line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+				line.setSalesItemLineDetail(silDetails);
+
+				BigDecimal amount = tax.add(unitPrice.multiply(qty));
+
+				System.out.println("inside amount---"+amount+"------"+tax);
+
+				line.setAmount(amount);
+				invLine.add(line);
+				addSalesReceipt.setLine(invLine);
+			}else if (item != null){
+				SalesItemLineDetail silDetails = new SalesItemLineDetail();
+
+				System.out.println("item id----"+item.getId());
+
+				silDetails.setItemRef(ItemHelper.getItemRef(item));
+				BigDecimal qty = new BigDecimal(lineMap.get("quantity").toString());
+				silDetails.setQty(qty);
+				BigDecimal unitPrice = new BigDecimal(lineMap.get("unit_price").toString());
+				silDetails.setUnitPrice(unitPrice);
+				BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
+				silDetails.setTaxInclusiveAmt(tax);
+				silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
+
+				line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+				line.setSalesItemLineDetail(silDetails);
+
+				BigDecimal amount = tax.add(unitPrice.multiply(qty));
+
+				System.out.println("amount---"+amount+"!!!!!!!!!"+tax);
+				line.setAmount(amount);
+				invLine.add(line);
+				addSalesReceipt.setLine(invLine);
+			}
+
+		}
+		SalesReceipt savedSalesReceipt = service.update(addSalesReceipt);
+		LOG.info("Invoice sparse updated: " + savedSalesReceipt.getId() + " doc num ::: " + savedSalesReceipt.getDocNumber() );
+
+		return savedSalesReceipt;
+	}
+
+	public static SalesReceipt getSalesReceiptWithId(DataService service, String id) throws FMSException, ParseException {
+		QueryResult queryResult = service.executeQuery("select * from SalesReceipt Where id = '"+id+"'");
+
+		if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
+			SalesReceipt salesReceipt = (SalesReceipt) queryResult.getEntities().get(0);
+			System.out.println("SalesReceipt------"+salesReceipt);
+			return salesReceipt;
+		}
+		return null;
+	}
+
+	public static Item getItemWithInventoryFields(DataService service, Map itemObj, Map settingObj) throws FMSException, ParseException {
+
+		Item item = new Item();
+		System.out.println("itemObj---"+ JSON.toJSONString(itemObj));
+		item.setName(itemObj.get("name").toString());
+		String incomeAccountName = settingObj.get("income_account").toString();
+		String assetAccountName = settingObj.get("asset_account").toString();
+
+//		item.setActive(true);
+//		item.setTaxable(false);
+		item.setUnitPrice(new BigDecimal(itemObj.get("unit_price").toString()) );
+		item.setType(ItemTypeEnum.INVENTORY);
+		item.setTrackQtyOnHand(true);
+		item.setQtyOnHand(BigDecimal.valueOf(0));
+		item.setInvStartDate(DateUtils.getCurrentDateTime());
+
+//		Account expenseAccount = AccountHelper.getExpenseBankAccount(service);
+		Account expenseAccount =AccountHelper.getAccountWithName(service,"Cost of Goods Sold");
+		item.setExpenseAccountRef(AccountHelper.getExpenseAccountRef(expenseAccount));
+
+		Account assetAccount = AccountHelper.getAccountWithName(service,"Inventory Asset");
+		item.setAssetAccountRef(AccountHelper.getAssetAccountRef(assetAccount));
+
+		Account incomeAccount = AccountHelper.getAccountWithName(service,"Sales of Product Income");
+		item.setIncomeAccountRef(AccountHelper.getIncomeAccountRef(incomeAccount));
+
+
+//		System.out.println("saved item---"+JSON.toJSONString(item));
+		service.add(item);
+//		System.out.println("saved item---"+JSON.toJSONString(item));
+
+//		return savedItem;
+		return item;
+	}
+
+	public static Item getItemWithNonInventoryFields(DataService service, Map itemObj, Map settingObj) throws FMSException, ParseException {
+
+		Item item = new Item();
+		System.out.println("itemObj---"+ JSON.toJSONString(itemObj));
+		item.setName(itemObj.get("name").toString());
+
+		String incomeAccountName = settingObj.get("income_account").toString();
+
+		item.setType(ItemTypeEnum.SERVICE);
+
+		Account expenseAccount =AccountHelper.getAccountWithName(service,"Cost of Goods Sold");
+		item.setExpenseAccountRef(AccountHelper.getExpenseAccountRef(expenseAccount));
+
+		Account incomeAccount = AccountHelper.getAccountWithName(service,incomeAccountName);
+		item.setIncomeAccountRef(AccountHelper.getIncomeAccountRef(incomeAccount));
+
+		service.add(item);
+		return item;
+	}
 
 
 

@@ -9,11 +9,15 @@ import com.intuit.oauth2.exception.OAuthException;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author dderose
@@ -30,38 +34,45 @@ public class RefreshTokenController {
     /**
      * Call to refresh tokens 
      * 
-     * @param session
+     * @param
      * @return
      */
 	@ResponseBody
     @RequestMapping("/refreshToken")
-    public String refreshToken(HttpSession session) {
-		
-    	String failureMsg="Failed";
+    public ResponseEntity refreshToken(@RequestParam("refreshToken") String refreshToken) {
  
         try {
         	
         	OAuth2PlatformClient client  = factory.getOAuth2PlatformClient();
-        	String refreshToken = (String)session.getAttribute("refresh_token");
         	BearerTokenResponse bearerTokenResponse = client.refreshToken(refreshToken);
-            session.setAttribute("access_token", bearerTokenResponse.getAccessToken());
-            session.setAttribute("refresh_token", bearerTokenResponse.getRefreshToken());
-            String jsonString = new JSONObject()
-                    .put("access_token", bearerTokenResponse.getAccessToken())
-                    .put("refresh_token", bearerTokenResponse.getRefreshToken()).toString();
-            return jsonString;
+
+//				工程中需要用的
+				String auth = new JSONObject()
+						.put("access_token", bearerTokenResponse.getAccessToken())
+						.put("refresh_token", bearerTokenResponse.getRefreshToken()).toString();
+
+            return ResponseEntity.ok(auth);
         }
+
         catch (OAuthException ex) {
             logger.error("OAuthException while calling refreshToken ", ex);
             logger.error("intuit_tid: " + ex.getIntuit_tid());
             logger.error("More info: " + ex.getResponseContent());
-            return new JSONObject().put("response", ex.getResponseContent()).toString();
+
+            Map<String, Object> er = new HashMap<>();
+                er.put("response status:", "404");
+                er.put("message", "Third party quickbook error: Can not get refresh token!");
+            return ResponseEntity.badRequest().body(er);
         }
         catch (Exception ex) {
         	logger.error("Exception while calling refreshToken ", ex);
-        	return new JSONObject().put("response", failureMsg).toString();
-        }    
-        
+
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "404");
+            er.put("message", "Third party quickbook error: Can not get refresh token!");
+            return ResponseEntity.badRequest().body(er);
+        }
+
     }
 
 }

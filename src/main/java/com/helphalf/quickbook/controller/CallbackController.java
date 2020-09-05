@@ -13,6 +13,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -51,48 +52,29 @@ public class CallbackController {
         try {
 	        String csrfToken = (String) session.getAttribute("csrfToken");
 	        if (csrfToken.equals(state)) {
-//	            session.setAttribute("realmId", realmId);
-//	            session.setAttribute("auth_code", authCode);
-	
 	            OAuth2PlatformClient client  = factory.getOAuth2PlatformClient();
 	            String redirectUri = factory.getPropertyValue("OAuth2AppRedirectUri");
 	            logger.info("inside oauth2redirect of sample -- redirectUri " + redirectUri  );
 	            BearerTokenResponse bearerTokenResponse = client.retrieveBearerTokens(authCode, redirectUri);
-				 
-//	            session.setAttribute("access_token", bearerTokenResponse.getAccessToken());
-//	            session.setAttribute("refresh_token", bearerTokenResponse.getRefreshToken());
-
-//
 				ContextFactory.bearerToken = bearerTokenResponse.getAccessToken();
 				ContextFactory.refreshToken = bearerTokenResponse.getRefreshToken();
 				ContextFactory.companyID = realmId;
 
+				System.out.println("refresh_token----"+ContextFactory.refreshToken);
 
-//
+//				工程中需要用的
 //				String bearerToken = bearerTokenResponse.getAccessToken();
 //				String refreshToken = bearerTokenResponse.getRefreshToken();
 //				Map<String, Object> auth = new HashMap<String, Object>();
 //				auth.put("access_token", bearerToken);
 //				auth.put("refresh_token", refreshToken);
 //				auth.put("realm_id", realmId);
-
-
-
 //				String jsonString = new JSONObject()
 //						.put("realm_id",realmId)
 //						.put("access_token", bearerTokenResponse.getAccessToken())
 //						.put("refresh_token", bearerTokenResponse.getRefreshToken()).toString();
 
 
-
-	            /*
-	                Update your Data store here with user's AccessToken and RefreshToken along with the realmId
-	    
-	                However, in case of OpenIdConnect, when you request OpenIdScopes during authorization,
-	                you will also receive IDToken from Intuit.
-	                You first need to validate that the IDToken actually came from Intuit.
-	             */
-	    
 	            if (StringUtils.isNotBlank(bearerTokenResponse.getIdToken())) {
 	               try {
 						if(client.validateIDToken(bearerTokenResponse.getIdToken())) {
@@ -104,15 +86,14 @@ public class CallbackController {
 						logger.error("Exception validating id token ", e);
 					   logger.error("intuit_tid: " + e.getIntuit_tid());
 					   logger.error("More info: " + e.getResponseContent());
+
 					}
 	            }
 	            
 	            return "connected";
 
-//				System.out.println("auth type"+ auth.getClass());
 
 //				return JSON.toJSONString(auth);
-
 
 
 			}

@@ -11,7 +11,9 @@ import java.util.Map;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.helphalf.quickbook.controller.QBOController;
 import com.intuit.ipp.data.*;
+import com.intuit.ipp.data.Error;
 import com.intuit.ipp.serialization.custom.OperationEnumJsonSerializer;
 import com.intuit.ipp.services.QueryResult;
 import org.apache.commons.lang.RandomStringUtils;
@@ -19,6 +21,7 @@ import org.apache.commons.lang.RandomStringUtils;
 import com.intuit.ipp.exception.FMSException;
 import com.intuit.ipp.services.DataService;
 import com.intuit.ipp.util.DateUtils;
+import org.apache.log4j.Logger;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable;
 
 /**
@@ -26,12 +29,15 @@ import org.graalvm.compiler.core.common.type.ArithmeticOpTable;
  *
  */
 public final class InvoiceHelper {
-	
+
+	private static final Logger LOG = Logger.getLogger(QBOController.class);
+
+
 	private InvoiceHelper() {
 		
 	}
 
-	public static Invoice getInvoiceFields(DataService service, Map<String,Object> map) throws FMSException, ParseException {
+	public static Invoice createInvoiceFields(DataService service, Map<String,Object> map) throws FMSException, ParseException {
 
 
 		Invoice invoice = new Invoice();
@@ -41,7 +47,7 @@ public final class InvoiceHelper {
 		//need to find duplicate
 //		String sql = "select * from Invoice order by TxnDate DESC";
 //		QueryResult queryResult = service.executeQuery(sql);
-//		String invoiceLists = JSON.toJSONString(queryResult);
+//
 //		Map<String, Object> invoiceMap = JSON.parseObject(invoiceLists, Map.class);
 //		List<Map<String, Object>> invoiceList = (List) invoiceMap.get("entities");
 //		System.out.println("invoiceList---"+JSON.toJSONString(invoiceList));
@@ -89,8 +95,7 @@ public final class InvoiceHelper {
 				customer.setPrimaryEmailAddr(email);
 			}
 		}
-		;
-		System.out.println("new customer-------"+JSON.toJSONString(customer));
+		//		System.out.println("new customer-------"+JSON.toJSONString(customer));
 		invoice.setCustomerRef(CustomerHelper.getCustomerRef(customer));
 
 
@@ -104,7 +109,7 @@ public final class InvoiceHelper {
 		//get line content
 		//添加invoice内line的内容
 		List<Line> invLine = new ArrayList<Line>();
-//		Line line = new Line();
+
 
 		JSONArray lineArray = (JSONArray)map.get("items");
 
@@ -125,7 +130,30 @@ public final class InvoiceHelper {
 
 			if (item == null ) {
 				SalesItemLineDetail silDetails = new SalesItemLineDetail();
-				Item savedItem = getItemWithFields(service,lineMap);
+				//if it is for shipping
+				if (itemName == "shipping") {
+					Item savedItem = getItemWithNonInventoryFields(service,lineMap,settingObj);
+					silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+					line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+					line.setSalesItemLineDetail(silDetails);
+					BigDecimal amount = new BigDecimal(lineMap.get("amount").toString());
+					line.setAmount(amount);
+					invLine.add(line);
+					invoice.setLine(invLine);
+				}
+				if(itemName == "tax") {
+					Item savedItem = getItemWithNonInventoryFields(service,lineMap,settingObj);
+					silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+					line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+					line.setSalesItemLineDetail(silDetails);
+					BigDecimal amount = new BigDecimal(lineMap.get("amount").toString());
+
+					line.setAmount(amount);
+					invLine.add(line);
+					invoice.setLine(invLine);
+				}
+
+				Item savedItem = getItemWithInventoryFields(service,lineMap,settingObj);
 				System.out.println("item detail 01---"+JSON.toJSONString(savedItem));
 //				Item newItem = service.add(savedItem);
 				System.out.println("item detail 02---"+JSON.toJSONString(savedItem));
@@ -136,10 +164,10 @@ public final class InvoiceHelper {
 //				Item savedItem = service.add(newItem);
 //				savedItem = ItemHelper.getItemWithName(service,itemName);
 //				item.setId(savedItem.getId());
-				System.out.println("saved item---------------"+JSON.toJSONString(savedItem));
+//				System.out.println("saved item---------------"+JSON.toJSONString(savedItem));
 //				System.out.println("item name---"+savedItem.getName());
 //				item = ItemHelper.getItemWithName(service,savedItem.getName());
-				System.out.println("item detail---"+savedItem);
+//				System.out.println("item detail---"+savedItem);
 //				savedItem.setId(savedItem.getId());
 				BigDecimal qty = new BigDecimal(lineMap.get("quantity").toString());
 				silDetails.setQty(qty);
@@ -147,8 +175,9 @@ public final class InvoiceHelper {
 				silDetails.setUnitPrice(unitPrice);
 				BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
 				silDetails.setTaxInclusiveAmt(tax);
-
-
+				if (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)) {
+					silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
+				}
 				line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
 				line.setSalesItemLineDetail(silDetails);
 
@@ -162,7 +191,7 @@ public final class InvoiceHelper {
 			}else if (item != null){
 				SalesItemLineDetail silDetails = new SalesItemLineDetail();
 
-				System.out.println("item id----"+item.getId());
+//				System.out.println("item id----"+item.getId());
 //				item.setId(item.getId());
 				silDetails.setItemRef(ItemHelper.getItemRef(item));
 				//			String qty = lineMap.get("quantity").toString();
@@ -170,20 +199,37 @@ public final class InvoiceHelper {
 				silDetails.setQty(qty);
 				BigDecimal unitPrice = new BigDecimal(lineMap.get("unit_price").toString());
 				silDetails.setUnitPrice(unitPrice);
-				BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
-				silDetails.setTaxInclusiveAmt(tax);
+//				BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
+//				silDetails.setTaxInclusiveAmt(tax);
+
+				if (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)) {
+					silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
+				}
 
 				line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
 				line.setSalesItemLineDetail(silDetails);
 
-				BigDecimal amount = tax.add(unitPrice.multiply(qty));
-				System.out.println("amount---"+amount+"!!!!!!!!!"+tax);
-//			BigDecimal amount = (BigDecimal) lineMap.get("amount");
+				BigDecimal amount = unitPrice.multiply(qty);
+
+//				System.out.println("amount---"+amount+"!!!!!!!!!"+tax);
+//			    BigDecimal amount = (BigDecimal) lineMap.get("amount");
 				line.setAmount(amount);
 				invLine.add(line);
 				invoice.setLine(invLine);
 			}
 
+		}
+
+		//if choose tax agency, set up sales tax
+		System.out.println("taxable-----"+ (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)));
+		System.out.println("tax agency-----"+taxAgency);
+
+		if (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)) {
+			TxnTaxDetail txnTaxDetail = new TxnTaxDetail();
+			//pass tax code
+			TaxCode taxcode = TaxCodeInfo.getTaxCode(service);
+			txnTaxDetail.setTxnTaxCodeRef(TaxCodeInfo.getTaxCodeRef(taxcode));
+			invoice.setTxnTaxDetail(txnTaxDetail);
 		}
 
 
@@ -194,18 +240,125 @@ public final class InvoiceHelper {
 		Invoice savedInvoice = service.add(invoice);
 
 		//send email
-//		System.out.println("email------"+customer.getPrimaryEmailAddr().getAddress()); //can get the email address
-		System.out.println("send email---"+ sendEmail);
-
 		if (sendEmail) {
 //			service.sendEmail(invoice, customerEmail);
 			System.out.println(sendEmail);
 			service.sendEmail(savedInvoice, customer.getPrimaryEmailAddr().getAddress());
-
 		}
 
 		return savedInvoice;
 	}
+
+	public static Invoice updateInvoice(DataService service, Map<String,Object> map) throws FMSException, ParseException {
+
+//			DataService service = DataServiceFactory.getDataService();
+
+			//get invoice
+			String id = (String) map.get("id");
+			Invoice addInvoice= getInvoiceWithId(service,id);
+		    System.out.println("invoice-----"+JSON.toJSONString(addInvoice));
+		    // sparse update invoice
+			addInvoice.setSparse(true);
+			List<Line> invLine = new ArrayList<Line>();
+			JSONArray lineArray = (JSONArray)map.get("items");
+		System.out.println("lineArray----"+lineArray);
+			Map<String, Object> settingObj = (Map<String, Object>) map.get("settings");
+
+			for(int i = 0; i < lineArray.size(); i++) {
+				Line line = new Line();
+				String lineDetail = JSON.toJSONString(lineArray.get(i));
+				Map<String, Object> lineMap = JSON.parseObject(lineDetail, Map.class);
+				String itemName = (String) lineMap.get("name");
+				Item item = ItemHelper.getItemWithName(service,itemName);
+				String description = (String) lineMap.get("description");
+				line.setId(Integer.toString(i+1));
+
+				if(description == null) {
+					line.setDescription("");
+				}else{
+					line.setDescription(description);
+				}
+
+				if (item == null ) {
+					SalesItemLineDetail silDetails = new SalesItemLineDetail();
+					//if it is for shipping
+					if (itemName == "shipping") {
+						Item savedItem = getItemWithNonInventoryFields(service,lineMap,settingObj);
+						silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+						line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+						line.setSalesItemLineDetail(silDetails);
+						BigDecimal amount = new BigDecimal(lineMap.get("amount").toString());
+						line.setAmount(amount);
+						invLine.add(line);
+						addInvoice.setLine(invLine);
+					}
+					if(itemName == "tax") {
+						Item savedItem = getItemWithNonInventoryFields(service,lineMap,settingObj);
+						silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+						line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+						line.setSalesItemLineDetail(silDetails);
+						BigDecimal amount = new BigDecimal(lineMap.get("amount").toString());
+
+						line.setAmount(amount);
+						invLine.add(line);
+						addInvoice.setLine(invLine);
+					}
+
+					Item savedItem = getItemWithInventoryFields(service,lineMap,settingObj);
+					silDetails.setItemRef(ItemHelper.getItemRef(savedItem));
+					BigDecimal qty = new BigDecimal(lineMap.get("quantity").toString());
+					silDetails.setQty(qty);
+					BigDecimal unitPrice = new BigDecimal(lineMap.get("unit_price").toString());
+					silDetails.setUnitPrice(unitPrice);
+					BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
+					silDetails.setTaxInclusiveAmt(tax);
+					silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
+
+					line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+					line.setSalesItemLineDetail(silDetails);
+
+					BigDecimal amount = tax.add(unitPrice.multiply(qty));
+
+					System.out.println("inside amount---"+amount+"------"+tax);
+
+					line.setAmount(amount);
+					invLine.add(line);
+					addInvoice.setLine(invLine);
+				}else if (item != null){
+					SalesItemLineDetail silDetails = new SalesItemLineDetail();
+
+					System.out.println("item id----"+item.getId());
+
+					silDetails.setItemRef(ItemHelper.getItemRef(item));
+					BigDecimal qty = new BigDecimal(lineMap.get("quantity").toString());
+					silDetails.setQty(qty);
+					BigDecimal unitPrice = new BigDecimal(lineMap.get("unit_price").toString());
+					silDetails.setUnitPrice(unitPrice);
+					BigDecimal tax = new BigDecimal(lineMap.get("tax_amount").toString());
+					silDetails.setTaxInclusiveAmt(tax);
+					silDetails.setTaxCodeRef(TaxCodeInfo.getTaxCodeRef("TAX"));
+
+					line.setDetailType(LineDetailTypeEnum.SALES_ITEM_LINE_DETAIL);
+					line.setSalesItemLineDetail(silDetails);
+
+					BigDecimal amount = tax.add(unitPrice.multiply(qty));
+
+					System.out.println("amount---"+amount+"!!!!!!!!!"+tax);
+					line.setAmount(amount);
+					invLine.add(line);
+					addInvoice.setLine(invLine);
+				}
+
+			}
+
+			Invoice savedInvoice = service.update(addInvoice);
+			LOG.info("Invoice sparse updated: " + savedInvoice.getId() + " doc num ::: " + savedInvoice.getDocNumber() );
+
+			return savedInvoice;
+
+		}
+
+
 	
 	public static Invoice getASTInvoiceFields(DataService service) throws FMSException, ParseException {
 		Invoice invoice = new Invoice();
@@ -327,11 +480,14 @@ public final class InvoiceHelper {
 		return customer;
 	}
 
-	public static Item getItemWithFields(DataService service, Map itemObj) throws FMSException, ParseException {
+	public static Item getItemWithInventoryFields(DataService service, Map itemObj, Map settingObj) throws FMSException, ParseException {
 
 		Item item = new Item();
 		System.out.println("itemObj---"+ JSON.toJSONString(itemObj));
 		item.setName(itemObj.get("name").toString());
+		String incomeAccountName = settingObj.get("income_account").toString();
+		String assetAccountName = settingObj.get("asset_account").toString();
+
 //		item.setActive(true);
 //		item.setTaxable(false);
 		item.setUnitPrice(new BigDecimal(itemObj.get("unit_price").toString()) );
@@ -379,20 +535,35 @@ for service
 		Account incomeAccount = AccountHelper.getAccountWithName(service,"Sales of Product Income");
 		item.setIncomeAccountRef(AccountHelper.getIncomeAccountRef(incomeAccount));
 
-//
-//		Account expenseAccount = AccountHelper.getExpenseBankAccount(service);
-//		item.setExpenseAccountRef(AccountHelper.getAccountRef(expenseAccount));
-//
-//		Account assetAccount = AccountHelper.getAssetAccount(service);
-//		item.setAssetAccountRef(AccountHelper.getAccountRef(assetAccount));
-
-
 
 //		System.out.println("saved item---"+JSON.toJSONString(item));
 		service.add(item);
+//		System.out.println("saved item---"+JSON.toJSONString(item));
+
 //		return savedItem;
 		return item;
 	}
+
+	public static Item getItemWithNonInventoryFields(DataService service, Map itemObj, Map settingObj) throws FMSException, ParseException {
+
+		Item item = new Item();
+		System.out.println("itemObj---"+ JSON.toJSONString(itemObj));
+		item.setName(itemObj.get("name").toString());
+
+		String incomeAccountName = settingObj.get("income_account").toString();
+
+		item.setType(ItemTypeEnum.SERVICE);
+
+		Account expenseAccount =AccountHelper.getAccountWithName(service,"Cost of Goods Sold");
+		item.setExpenseAccountRef(AccountHelper.getExpenseAccountRef(expenseAccount));
+
+		Account incomeAccount = AccountHelper.getAccountWithName(service,incomeAccountName);
+		item.setIncomeAccountRef(AccountHelper.getIncomeAccountRef(incomeAccount));
+
+		service.add(item);
+		return item;
+	}
+
 
 //	  public static Invoice getInvoice(DataService service) throws FMSException, ParseException {
 //			List<Invoice> invoices = (List<Invoice>) service.findAll(new Invoice());
@@ -413,7 +584,17 @@ for service
 //			invoiceRef.setValue(invoice.getId());
 //			return invoiceRef;
 //	}
-	
+
+	public static Invoice getInvoiceWithId(DataService service, String id) throws FMSException, ParseException {
+		QueryResult queryResult = service.executeQuery("select * from Invoice Where id = '"+id+"'");
+
+		if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
+			Invoice invoice = (Invoice) queryResult.getEntities().get(0);
+			System.out.println("invoice------"+invoice);
+			return invoice;
+		}
+		return null;
+	}
 	
 	  
 }

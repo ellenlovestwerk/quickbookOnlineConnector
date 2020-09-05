@@ -22,10 +22,10 @@ import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import com.helphalf.quickbook.helper.InvoiceHelper;
 import org.springframework.http.ResponseEntity;
+import com.helphalf.quickbook.helper.InvoiceHelper;
 import java.text.ParseException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,18 +41,38 @@ public class InvoiceController {
 
 
     @ResponseBody
-    @PostMapping("/invoice/create")
-    public String createInvoice(@RequestBody String newInvoice) {
+    @PostMapping(value = "/invoice/create", produces = "application/json;charset=UTF-8")
+    public ResponseEntity createInvoice(@RequestBody String newInvoice) {
 
-        String realmId = ContextFactory.companyID;
 
         Map<String, Object> newInvoiceMap = JSON.parseObject(newInvoice, Map.class);
+        //项目需要用的auth
+//        String realmId = (String) newInvoiceMap.get("realm_id");
+//        String accessToken = (String) newInvoiceMap.get("access_token");
+//        String refreshToken = (String) newInvoiceMap.get("refresh_token");
 
-        if (StringUtils.isEmpty(realmId)) {
-            return new JSONObject().put("response", "No realm ID.  QBO calls only work if the accounting scope was passed!").toString();
-        }
+
+        //本地测试用auth
+        String realmId = ContextFactory.companyID;
         String accessToken = ContextFactory.bearerToken;
         String refreshToken = ContextFactory.refreshToken;
+
+
+        if (StringUtils.isEmpty(realmId)) {
+//            return new JSONObject().put("response", "No realm ID.  QBO calls only work if the accounting scope was passed!").toString();
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "400");
+            er.put("message", "Third party quickbook error: No realm ID.  QBO calls only work if the accounting scope was passed!");
+            return ResponseEntity.badRequest().body(er);
+        }
+
+
+        if (StringUtils.isEmpty(accessToken)) {
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "401");
+            er.put("message", "Third party quickbook error: No access token.");
+            return ResponseEntity.badRequest().body(er);
+        }
 
         String failureMsg = "Failed";
 
@@ -68,7 +88,7 @@ public class InvoiceController {
             //get DataService
             DataService service = serviceClient.getDataService(realmId, accessToken);
 
-            Invoice invoice = InvoiceHelper.getInvoiceFields(service,newInvoiceMap);
+            Invoice invoice = InvoiceHelper.createInvoiceFields(service, newInvoiceMap);
 //            System.out.println("saveInvoice-----"+JSON.toJSONString(invoice));
 //            Invoice savedInvoice = service.add(invoice);
 //            System.out.println("saveInvoice2-----"+JSON.toJSONString(savedInvoice));
@@ -76,60 +96,87 @@ public class InvoiceController {
 
 //            return JSON.toJSONString(invoice);
 
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                String jsonInString = mapper.writeValueAsString(invoice);
+//            ObjectMapper mapper = new ObjectMapper();
+//                String jsonInString = mapper.writeValueAsString(invoice);
+//                Map<String,Object> map = new HashMap<String,Object>();
+//                map.put("response :", invoice);
 
-                return jsonInString;
+                return ResponseEntity.ok(JSON.toJSONString(invoice));
 
-            } catch (JsonProcessingException e) {
-                LOG.error("Exception while getting account info ", e);
-                return new JSONObject().put("response",failureMsg).toString();
-            }
-
-
-
-//            return new JSONObject().put("response status 200: ",JSON.toJSONString(invoice));
-        }
-        catch (InvalidTokenException e) {
-            LOG.error("Error while calling executeQuery :: " + e.getMessage());
-
-            //refresh tokens
-            LOG.info("received 401 during account call, refreshing tokens now");
-            OAuth2PlatformClient client  = factory.getOAuth2PlatformClient();
-
-            try {
-                BearerTokenResponse bearerTokenResponse = client.refreshToken(accessToken);
-
-                ContextFactory.bearerToken = bearerTokenResponse.getAccessToken();
-                ContextFactory.refreshToken = bearerTokenResponse.getRefreshToken();
-
-                //call company info again using new tokens
-                LOG.info("calling account using new tokens");
-                DataService service = serviceClient.getDataService(realmId, accessToken);
-
-                // get all companyinfo
-                String sql = "select * from invoice";
-                QueryResult queryResult = service.executeQuery(sql);
-                return processResponse(failureMsg, queryResult);
-
-            } catch (OAuthException e1) {
-                LOG.error("Error while calling bearer token :: " + e.getMessage());
-                return new JSONObject().put("response",failureMsg).toString();
-            } catch (FMSException e1) {
-                LOG.error("Error while calling account currency :: " + e.getMessage());
-                return new JSONObject().put("response",failureMsg).toString();
-            }
-
+            } catch (InvalidTokenException e) {
+            return ResponseEntity.badRequest().body(e);
         } catch (FMSException e) {
             List<Error> list = e.getErrorList();
-            list.forEach(error -> LOG.error("Error while calling executeQuery :: " + error.getMessage()));
-            return new JSONObject().put("response",failureMsg).toString();
+//            list.forEach(error -> logger.error("Error while calling the API :: " + error.getMessage()));
+            return ResponseEntity.badRequest().body(list);
         } catch (ParseException e) {
             e.printStackTrace();
         }
-        return "";
+        return (ResponseEntity) ResponseEntity.ok();
     }
+//        return "";
+
+    @ResponseBody
+    @PostMapping(value = "/invoice/update", produces = "application/json;charset=UTF-8")
+    public ResponseEntity updateInvoice(@RequestBody String newInvoice) {
+
+        Map<String, Object> newInvoiceMap = JSON.parseObject(newInvoice, Map.class);
+        //项目需要用的auth
+//        String realmId = (String) newInvoiceMap.get("realm_id");
+//        String accessToken = (String) newInvoiceMap.get("access_token");
+//        String refreshToken = (String) newInvoiceMap.get("refresh_token");
+
+        String realmId = ContextFactory.companyID;
+
+        if (StringUtils.isEmpty(realmId)) {
+
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "400");
+            er.put("message", "Third party quickbook error: No realm ID.  QBO calls only work if the accounting scope was passed!");
+
+            return ResponseEntity.badRequest().body(er);
+        }
+        String accessToken = ContextFactory.bearerToken;
+        String refreshToken = ContextFactory.refreshToken;
+
+        String failureMsg = "Failed";
+
+        if (StringUtils.isEmpty(accessToken)) {
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "401");
+            er.put("message", "Third party quickbook error: No access token.");
+            return ResponseEntity.badRequest().body(er);
+        }
+
+        DataServiceFactory serviceClient = new DataServiceFactory();
+
+        String url = factory.getPropertyValue("IntuitAccountingAPIHost") + "/v3/company";
+
+        try {
+
+            // set custom config
+            Config.setProperty(Config.BASE_URL_QBO, url);
+
+            //get DataService
+            DataService service = serviceClient.getDataService(realmId, accessToken);
+
+            Invoice invoice = InvoiceHelper.updateInvoice(service, newInvoiceMap);
+
+            return ResponseEntity.ok(JSON.toJSONString(invoice));
+
+        } catch (InvalidTokenException e) {
+            return ResponseEntity.badRequest().body(e);
+        } catch (FMSException e) {
+            List<Error> list = e.getErrorList();
+//            list.forEach(error -> logger.error("Error while calling the API :: " + error.getMessage()));
+            return ResponseEntity.badRequest().body(list);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return (ResponseEntity) ResponseEntity.ok();
+    }
+
+
 
     private String processResponse(String failureMsg, QueryResult queryResult) {
         if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
@@ -148,16 +195,5 @@ public class InvoiceController {
         }
         return failureMsg;
     }
-
-//    private DataService getDataService(String realmId, String accessToken) throws FMSException {
-//
-//        //create oauth object
-//        OAuth2Authorizer oauth = new OAuth2Authorizer(accessToken);
-//        //create context
-//        Context context = new Context(oauth, ServiceType.QBO, realmId);
-//
-//        // create dataservice
-//        return new DataService(context);
-//    }
 
 }

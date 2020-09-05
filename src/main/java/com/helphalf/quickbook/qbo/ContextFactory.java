@@ -38,6 +38,8 @@ public class ContextFactory {
 		Context context = new Context(oauth, ServiceType.QBO, companyID);
 //		Context context = new Context(oauth, companyID);
 
+
+
 //		System.out.println("context---------!"+context+" ----   qbo    --"+context.getIntuitServiceType()+"realmID-------!!"+context.getRealmID());
 		return context;
 	}

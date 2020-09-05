@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
 
 import java.util.HashMap;
 import java.util.List;
@@ -41,15 +42,25 @@ public class SettingController {
 
     @ResponseBody
     @GetMapping("/setting")
-    public String callAccountInfo() {
+    public ResponseEntity callAccountInfo() {
 
         String realmId = ContextFactory.companyID;
 
         if (StringUtils.isEmpty(realmId)) {
-            return new JSONObject().put("response", "No realm ID.  QBO calls only work if the accounting scope was passed!").toString();
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "400");
+            er.put("message", "Third party quickbook error: No realm ID.  QBO calls only work if the accounting scope was passed!");
+            return ResponseEntity.badRequest().body(er);
         }
         String accessToken = ContextFactory.bearerToken;
         String refreshToken = ContextFactory.refreshToken;
+
+        if (StringUtils.isEmpty(accessToken)) {
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "401");
+            er.put("message", "Third party quickbook error: No access token.");
+            return ResponseEntity.badRequest().body(er);
+        }
 
         String failureMsg = "Failed";
 //        System.out.println("accesstoken----"+accessToken);
@@ -94,7 +105,9 @@ public class SettingController {
             mapSetting.put("asset_accounts", assetMap.get("entities"));
             mapSetting.put("tax_agencies", taxMap.get("entities"));
 
-            return mapSetting.toString();
+//            return mapSetting.toString();
+            return ResponseEntity.ok(JSON.toJSONString(mapSetting));
+
 //            return processResponse(failureMsg, queryResult);
 //            return result;
         }
@@ -120,21 +133,40 @@ public class SettingController {
                 // get all companyinfo
                 String sql = "select * from account";
                 QueryResult queryResult = service.executeQuery(sql);
-                return processResponse(failureMsg, queryResult);
+//                return processResponse(failureMsg, queryResult);
+                Map<String, Object> er = new HashMap<>();
+
+                if (queryResult.getEntities().isEmpty() || queryResult.getEntities().size() == 0) {
+                    er.put("response status:", "402");
+                    er.put("message", "Third party quickbook error: Can not find any object.");
+                }
+                return ResponseEntity.badRequest().body(er);
+
 
             } catch (OAuthException e1) {
                 logger.error("Error while calling bearer token :: " + e.getMessage());
-                return new JSONObject().put("response",failureMsg).toString();
+
+                    Map<String, Object> er = new HashMap<>();
+                    er.put("response status:", "401");
+                    er.put("message", "Third party quickbook error: No access token.");
+                    return ResponseEntity.badRequest().body(er);
+
             } catch (FMSException e1) {
                 logger.error("Error while calling account currency :: " + e.getMessage());
-                return new JSONObject().put("response",failureMsg).toString();
+                return ResponseEntity.badRequest().body(e1);
             }
 
         } catch (FMSException e) {
             List<Error> list = e.getErrorList();
             list.forEach(error -> logger.error("Error while calling executeQuery :: " + error.getMessage()));
-            return new JSONObject().put("response",failureMsg).toString();
+
+            Map<String, Object> er = new HashMap<>();
+            er.put("response status:", "403");
+            er.put("message", "Third party quickbook error: Error while calling executeQuery! " );
+            return ResponseEntity.badRequest().body(er);
+//            return ResponseEntity.badRequest().body(e);
         }
+
     }
 
     private String processResponse(String failureMsg, QueryResult queryResult) {

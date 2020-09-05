@@ -1,5 +1,6 @@
 package com.helphalf.quickbook.helper;
 
+import com.alibaba.fastjson.JSON;
 import com.intuit.ipp.data.ReferenceType;
 import com.intuit.ipp.data.TaxCode;
 import com.intuit.ipp.exception.FMSException;
@@ -18,7 +19,8 @@ public final class TaxCodeInfo {
 	}
 
 	public static TaxCode getTaxCode(DataService service) throws FMSException {
-		List<TaxCode> taxcodes = (List<TaxCode>) service.findAll(new TaxCode());
+		List<TaxCode> taxcodes = service.findAll(new TaxCode());
+//		System.out.println("tax code---"+JSON.toJSONString(taxcodes));
 		return taxcodes.get(0); 
 	}
 	

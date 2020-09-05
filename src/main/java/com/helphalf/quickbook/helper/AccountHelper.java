@@ -79,7 +79,7 @@ public final class AccountHelper {
 	}
 	  
 	  public static Account getAssetAccount(DataService service)  throws FMSException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {
@@ -116,7 +116,7 @@ public final class AccountHelper {
 	}
 
 	public static Account getCashBankAccount(DataService service) throws FMSException, ParseException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {
@@ -130,7 +130,7 @@ public final class AccountHelper {
 	  }
 	  
 		public static Account getCreditCardBankAccount(DataService service) throws FMSException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {
@@ -167,7 +167,7 @@ public final class AccountHelper {
 		}
 		
 		public static Account getIncomeBankAccount(DataService service) throws FMSException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {
@@ -204,7 +204,7 @@ public final class AccountHelper {
 		}
 
 		public static Account getExpenseBankAccount(DataService service) throws FMSException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {
@@ -241,7 +241,7 @@ public final class AccountHelper {
 		}
 
 		public static Account getLiabilityBankAccount(DataService service) throws FMSException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {
@@ -279,7 +279,7 @@ public final class AccountHelper {
 		}
 
 		public static Account getCheckBankAccount(DataService service) throws FMSException, ParseException {
-			List<Account> accounts = (List<Account>) service.findAll(new Account());
+			List<Account> accounts = service.findAll(new Account());
 			if (!accounts.isEmpty()) {
 				Iterator<Account> itr = accounts.iterator();
 				while (itr.hasNext()) {

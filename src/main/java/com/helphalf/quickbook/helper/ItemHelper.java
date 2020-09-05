@@ -53,7 +53,7 @@ public final class ItemHelper {
 
 
 	public static Item getItem(DataService service) throws FMSException {
-		List<Item> items = (List<Item>) service.findAll(new Item());
+		List<Item> items = service.findAll(new Item());
 		if (!items.isEmpty()) { 
 			return items.get(0); 
 		}
@@ -73,7 +73,7 @@ public final class ItemHelper {
 
 		if (!queryResult.getEntities().isEmpty() && queryResult.getEntities().size() > 0) {
 			Item item = (Item) queryResult.getEntities().get(0);
-			System.out.println("item------"+item);
+//			System.out.println("item------"+item);
 			return item;
 		}
 		return null;
