@@ -83,7 +83,6 @@ public final class InvoiceHelper {
 		String customerEmail = customerObj.get("email").toString();
 		Customer customer = CustomerHelper.getCustomerWithName(service,customerName);
 
-
 		if(customer != null ) {
 			customer.setId(customer.getId());
 		}else {
@@ -98,7 +97,6 @@ public final class InvoiceHelper {
 		//		System.out.println("new customer-------"+JSON.toJSONString(customer));
 		invoice.setCustomerRef(CustomerHelper.getCustomerRef(customer));
 
-
 		//set shipping from address
 		Map<String, Object> customerAddressMap = (Map<String, Object>) map.get("customer");
 		invoice.setShipAddr(Address.getPhysicalAddress(customerAddressMap));
@@ -109,7 +107,6 @@ public final class InvoiceHelper {
 		//get line content
 		//添加invoice内line的内容
 		List<Line> invLine = new ArrayList<Line>();
-
 
 		JSONArray lineArray = (JSONArray)map.get("items");
 
@@ -154,9 +151,9 @@ public final class InvoiceHelper {
 				}
 
 				Item savedItem = getItemWithInventoryFields(service,lineMap,settingObj);
-				System.out.println("item detail 01---"+JSON.toJSONString(savedItem));
+//				System.out.println("item detail 01---"+JSON.toJSONString(savedItem));
 //				Item newItem = service.add(savedItem);
-				System.out.println("item detail 02---"+JSON.toJSONString(savedItem));
+//				System.out.println("item detail 02---"+JSON.toJSONString(savedItem));
 
 //				newItem = ItemHelper.getItemWithName(service,newItem.getName());
 
@@ -188,6 +185,7 @@ public final class InvoiceHelper {
 				line.setAmount(amount);
 				invLine.add(line);
 				invoice.setLine(invLine);
+
 			}else if (item != null){
 				SalesItemLineDetail silDetails = new SalesItemLineDetail();
 
@@ -216,26 +214,32 @@ public final class InvoiceHelper {
 				line.setAmount(amount);
 				invLine.add(line);
 				invoice.setLine(invLine);
+
 			}
 
 		}
 
 		//if choose tax agency, set up sales tax
-		System.out.println("taxable-----"+ (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)));
-		System.out.println("tax agency-----"+taxAgency);
+//		System.out.println("taxable-----"+ (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)));
+//		System.out.println("tax agency-----"+taxAgency);
 
+		BigDecimal taxAmount = new BigDecimal(map.get("tax_amount").toString());
 		if (!(taxAgency == "" || taxAgency == null || taxAgency.length() == 0)) {
 			TxnTaxDetail txnTaxDetail = new TxnTaxDetail();
 			//pass tax code
 			TaxCode taxcode = TaxCodeInfo.getTaxCode(service);
 			txnTaxDetail.setTxnTaxCodeRef(TaxCodeInfo.getTaxCodeRef(taxcode));
 			invoice.setTxnTaxDetail(txnTaxDetail);
-		}
 
+			txnTaxDetail.setTotalTax(taxAmount);
+		}
 
 		invoice.setPrintStatus(PrintStatusEnum.NEED_TO_PRINT);
 //		invoice.setTotalAmt(new BigDecimal("10"));
 		invoice.setFinanceCharge(false);
+
+
+
 
 		Invoice savedInvoice = service.add(invoice);
 
@@ -261,7 +265,7 @@ public final class InvoiceHelper {
 			addInvoice.setSparse(true);
 			List<Line> invLine = new ArrayList<Line>();
 			JSONArray lineArray = (JSONArray)map.get("items");
-		System.out.println("lineArray----"+lineArray);
+		   System.out.println("lineArray----"+lineArray);
 			Map<String, Object> settingObj = (Map<String, Object>) map.get("settings");
 
 			for(int i = 0; i < lineArray.size(); i++) {
